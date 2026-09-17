@@ -41,14 +41,15 @@ Configuration is resolved in this order (later wins): built-in defaults →
 | TeX Live release | `TEXLIVE_RELEASE` | `--texlive-release` | `latest` |
 | TeX Live scheme | `TEXLIVE_SCHEME` | `--texlive-scheme` | `minimal`\* |
 | Extra TeX Live packages | `TEXLIVE_PACKAGES` | `--texlive-packages` | see below\* |
+| TeX Live mirror | `TEXLIVE_MIRROR` | `--texlive-mirror` | `https://linorg.usp.br` |
 | LilyPond version | `LILYPOND_VERSION` | `--lilypond-version` | `2.26.0` |
 | Gregorio ref (lbssousa/gregorio) | `GREGORIO_REF` | `--gregorio-ref` | `playground-2026-08-27` |
 | Container name | `CONTAINER_NAME` | `--name` | `typesetting` |
 | Container engine | `ENGINE` | `--engine` | `auto` (podman, fallback docker) |
 
 \* Temporarily trimmed down from a `full` scheme while iterating on the build (a full scheme
-rebuild is slow to iterate on). The default `TEXLIVE_PACKAGES` is the `minimal` scheme plus the
-extra packages listed by
+rebuild is slow to iterate on). The default `TEXLIVE_PACKAGES` (and the default
+`TEXLIVE_MIRROR`) come from
 [AISCGre-BR/Eugene-Cardine-Primeiro-Ano-de-Semiologia-Gregoriana](https://github.com/AISCGre-BR/Eugene-Cardine-Primeiro-Ano-de-Semiologia-Gregoriana)'s
 `.devcontainer/devcontainer.json`, plus the individual packages MusiXTeX needs
 (`musixtex`, `musixtex-fonts`). Revert `TEXLIVE_SCHEME` to `full` (and clear `TEXLIVE_PACKAGES`)

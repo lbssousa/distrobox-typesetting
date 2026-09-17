@@ -14,6 +14,7 @@ TEXLIVE_SCHEME="minimal"
 # Temporary trimmed-down default while iterating on the build: see the
 # matching comment in Containerfile.
 TEXLIVE_PACKAGES="babel-latin,babel-portuges,booktabs,csquotes,ebgaramond,enumitem,epstopdf-pkg,float,fontspec,geometry,hyperref,hyphen-latin,hyphen-portuguese,l3packages,latex-bin,latexindent,latexmk,libertine,listings,luacolor,luamplib,luatex85,luatexbase,memoir,metapost,metre,microtype,musixtex,musixtex-fonts,paracol,pgf,quoting,relsize,stackengine,standalone,subfiles,texcount,textcase,tikzmark,tools,varwidth,xcolor,xetex,xkeyval,xpatch,xstring"
+TEXLIVE_MIRROR="https://linorg.usp.br"
 LILYPOND_VERSION="2.26.0"
 GREGORIO_REF="playground-2026-08-27"
 CONTAINER_NAME="typesetting"
@@ -39,6 +40,7 @@ Options:
   --texlive-release RELEASE   TeX Live release: year or "latest" (default: ${TEXLIVE_RELEASE})
   --texlive-scheme SCHEME     TeX Live scheme (default: ${TEXLIVE_SCHEME})
   --texlive-packages PKGS     Extra TeX Live packages, space/comma-separated (default: "${TEXLIVE_PACKAGES}")
+  --texlive-mirror URL        TeX Live mirror base URL (default: ${TEXLIVE_MIRROR})
   --lilypond-version VERSION  LilyPond version (default: ${LILYPOND_VERSION})
   --gregorio-ref REF          lbssousa/gregorio ref to build from (default: ${GREGORIO_REF})
   --name NAME                 distrobox container name (default: ${CONTAINER_NAME})
@@ -56,6 +58,7 @@ while [ $# -gt 0 ]; do
         --texlive-release) TEXLIVE_RELEASE="$2"; shift 2 ;;
         --texlive-scheme) TEXLIVE_SCHEME="$2"; shift 2 ;;
         --texlive-packages) TEXLIVE_PACKAGES="$2"; shift 2 ;;
+        --texlive-mirror) TEXLIVE_MIRROR="$2"; shift 2 ;;
         --lilypond-version) LILYPOND_VERSION="$2"; shift 2 ;;
         --gregorio-ref) GREGORIO_REF="$2"; shift 2 ;;
         --name) CONTAINER_NAME="$2"; shift 2 ;;
@@ -110,6 +113,7 @@ echo "==> Building ${IMAGE_TAG} with ${ENGINE}"
     --build-arg "TEXLIVE_RELEASE=${TEXLIVE_RELEASE}" \
     --build-arg "TEXLIVE_SCHEME=${TEXLIVE_SCHEME}" \
     --build-arg "TEXLIVE_PACKAGES=${TEXLIVE_PACKAGES}" \
+    --build-arg "TEXLIVE_MIRROR=${TEXLIVE_MIRROR}" \
     --build-arg "LILYPOND_VERSION=${LILYPOND_VERSION}" \
     --build-arg "GREGORIO_REF=${GREGORIO_REF}" \
     "${SCRIPT_DIR}"
