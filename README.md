@@ -12,7 +12,8 @@ typesetting and music-engraving toolchain:
   [lbssousa/gregorio](https://github.com/lbssousa/gregorio) and wired into TeX Live
   (`gregoriotex`), independently of TeX Live's own package manager.
 - [Inkscape](https://inkscape.org/), [svg2tikz](https://github.com/xyz2tex/svg2tikz),
-  [Neovim](https://neovim.io/), [Zathura](https://pwmt.org/projects/zathura/).
+  [Neovim](https://neovim.io/), [Zathura](https://pwmt.org/projects/zathura/),
+  [Starship](https://starship.rs/) (shell prompt).
 
 TeX Live's bundled fonts are registered with fontconfig at build time, so LilyPond, Inkscape,
 and any other fontconfig-aware tool in the container can use them.
@@ -99,3 +100,6 @@ The TeX Live, LilyPond, and Gregorio install scripts are adapted from
 - svg2tikz's Inkscape GUI extension registration is best-effort: it depends on the pip
   package still bundling `.inx`/`.py` extension files at a discoverable path. If registration
   is skipped, the `svg2tikz` CLI command is still installed and usable directly.
+- Starship is wired up via `/etc/profile.d/starship.sh`, which only login shells read. If
+  `distrobox enter` (or your terminal) starts a non-login shell and the prompt doesn't appear,
+  add `eval "$(starship init bash)"` (or `zsh`) to your own `~/.bashrc`/`~/.zshrc`.

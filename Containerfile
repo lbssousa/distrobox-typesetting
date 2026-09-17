@@ -37,6 +37,7 @@ RUN /opt/distrobox-typesetting/scripts/install-inkscape.sh
 RUN /opt/distrobox-typesetting/scripts/install-svg2tikz.sh
 RUN /opt/distrobox-typesetting/scripts/install-neovim.sh
 RUN /opt/distrobox-typesetting/scripts/install-zathura.sh
+RUN /opt/distrobox-typesetting/scripts/install-starship.sh
 RUN /opt/distrobox-typesetting/scripts/configure-fonts.sh
 
 ENV MANPATH="/opt/texlive/bin/man:${MANPATH}" \
