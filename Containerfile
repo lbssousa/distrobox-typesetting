@@ -6,8 +6,12 @@ ARG BASE_IMAGE=alpine:latest
 FROM ${BASE_IMAGE}
 
 ARG TEXLIVE_RELEASE=latest
-ARG TEXLIVE_SCHEME=full
-ARG TEXLIVE_PACKAGES=""
+ARG TEXLIVE_SCHEME=minimal
+# Temporary trimmed-down default while iterating on the build: the "minimal"
+# scheme plus the extra packages listed by AISCGre-BR's
+# Eugene-Cardine-Primeiro-Ano-de-Semiologia-Gregoriana project, plus the
+# individual packages MusiXTeX needs (musixtex, musixtex-fonts).
+ARG TEXLIVE_PACKAGES="babel-latin,babel-portuges,booktabs,csquotes,ebgaramond,enumitem,epstopdf-pkg,float,fontspec,geometry,hyperref,hyphen-latin,hyphen-portuguese,l3packages,latex-bin,latexindent,latexmk,libertine,listings,luacolor,luamplib,luatex85,luatexbase,memoir,metapost,metre,microtype,musixtex,musixtex-fonts,paracol,pgf,quoting,relsize,stackengine,standalone,subfiles,texcount,textcase,tikzmark,tools,varwidth,xcolor,xetex,xkeyval,xpatch,xstring"
 ARG LILYPOND_VERSION=2.26.0
 ARG GREGORIO_REF=playground-2026-08-27
 

@@ -41,18 +41,34 @@ install_python_prereqs() {
     fi
 }
 
-# svg2tikz depends on lxml, which ships no musl (Alpine) wheels and often no
-# wheel at all for the exact Python/arch combination in the container, so pip
-# falls back to building it from source. That requires a C compiler, Python
-# headers, and the libxml2/libxslt development headers -- install them as
-# build-only deps and remove them again once the venv is populated.
-install_lxml_build_deps() {
+# svg2tikz (via inkex/lxml/pygobject/pycairo/numpy) ships no musl (Alpine)
+# wheels, and often none for the exact Python/arch combination in the
+# container either, so pip falls back to building several of its
+# dependencies from source:
+#   - lxml needs the libxml2/libxslt development headers.
+#   - pycairo (a pygobject dependency) needs the cairo development headers.
+#   - pygobject itself needs the GObject-Introspection development headers
+#     (girepository-1.0).
+#   - numpy (an inkex dependency) needs a C++ compiler (g++), not just a C
+#     one, for its Meson build.
+# Install a C/C++ compiler, Python headers, and all of the above as
+# build-only deps, and remove them again once the venv is populated.
+install_native_build_deps() {
     if is_debian_like; then
-        install_build_deps gcc python3-dev libxml2-dev libxslt1-dev pkg-config
+        install_build_deps \
+            gcc g++ python3-dev pkg-config \
+            libxml2-dev libxslt1-dev \
+            libcairo2-dev libgirepository1.0-dev
     elif is_redhat_like; then
-        install_build_deps gcc python3-devel libxml2-devel libxslt-devel pkgconf
+        install_build_deps \
+            gcc gcc-c++ python3-devel pkgconf \
+            libxml2-devel libxslt-devel \
+            cairo-devel gobject-introspection-devel
     elif is_alpine; then
-        install_build_deps gcc musl-dev python3-dev libxml2-dev libxslt-dev pkgconfig
+        install_build_deps \
+            gcc g++ musl-dev python3-dev pkgconfig \
+            libxml2-dev libxslt-dev \
+            cairo-dev gobject-introspection-dev
     fi
 }
 
@@ -78,7 +94,7 @@ register_inkscape_extension() {
 main() {
     echo "Installing svg2tikz..."
     install_python_prereqs
-    install_lxml_build_deps
+    install_native_build_deps
 
     python3 -m venv "${SVG2TIKZ_PREFIX}"
     "${SVG2TIKZ_PREFIX}/bin/pip" install --no-cache-dir --upgrade pip
