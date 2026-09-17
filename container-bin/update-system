@@ -1,0 +1,12 @@
+#!/bin/bash
+# Upgrades the container's OS packages via its native package manager.
+set -euo pipefail
+
+if [ "$(id -u)" -ne 0 ]; then
+    exec sudo "$0" "$@"
+fi
+
+# shellcheck source=../scripts/lib/common.sh
+. /opt/distrobox-typesetting/scripts/lib/common.sh
+
+upgrade_pkgs

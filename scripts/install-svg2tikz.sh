@@ -1,0 +1,100 @@
+#!/bin/sh
+# Installs svg2tikz into an isolated venv under /opt/svg2tikz (symlinked into
+# /usr/local/bin, following the same /opt-prefix convention as TeX Live and
+# LilyPond), and best-effort registers its Inkscape extension files so it is
+# also usable from Inkscape's GUI "Extensions" menu.
+#
+# A dedicated venv (rather than pipx) is used deliberately: pipx installs into
+# the invoking user's home directory by default, which during an image build
+# means root's home -- inaccessible to the non-root user distrobox normally
+# runs as. /opt/svg2tikz is world-readable and independent of who builds it.
+if [ -z "${BASH_VERSION:-}" ]; then
+    if ! command -v bash >/dev/null 2>&1; then
+        if command -v apk >/dev/null 2>&1; then
+            echo "Installing bash (required for build)..."
+            apk add --no-cache bash
+        else
+            echo "ERROR: bash is required but not found." >&2
+            exit 1
+        fi
+    fi
+    exec bash "$0" "$@"
+fi
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/common.sh
+. "${SCRIPT_DIR}/lib/common.sh"
+
+SVG2TIKZ_PREFIX="/opt/svg2tikz"
+_BUILD_PKGS_TO_REMOVE=()
+
+install_python_prereqs() {
+    update_pkg_index
+    if is_debian_like; then
+        pkg_install python3 python3-venv
+    elif is_redhat_like; then
+        pkg_install python3
+    elif is_alpine; then
+        pkg_install python3
+    fi
+}
+
+# svg2tikz depends on lxml, which ships no musl (Alpine) wheels and often no
+# wheel at all for the exact Python/arch combination in the container, so pip
+# falls back to building it from source. That requires a C compiler, Python
+# headers, and the libxml2/libxslt development headers -- install them as
+# build-only deps and remove them again once the venv is populated.
+install_lxml_build_deps() {
+    if is_debian_like; then
+        install_build_deps gcc python3-dev libxml2-dev libxslt1-dev pkg-config
+    elif is_redhat_like; then
+        install_build_deps gcc python3-devel libxml2-devel libxslt-devel pkgconf
+    elif is_alpine; then
+        install_build_deps gcc musl-dev python3-dev libxml2-dev libxslt-dev pkgconfig
+    fi
+}
+
+# Copy any bundled Inkscape .inx/.py extension files from the venv's
+# site-packages into the system Inkscape extensions directory.
+register_inkscape_extension() {
+    local ext_src
+    ext_src="$(find "${SVG2TIKZ_PREFIX}" -type d -iname 'inkscape' -path '*svg2tikz*' 2>/dev/null | head -1 || true)"
+
+    if [ -z "${ext_src}" ]; then
+        echo "NOTE: svg2tikz's pip package does not bundle Inkscape .inx extension" >&2
+        echo "      files at a discoverable path; skipping GUI extension registration." >&2
+        echo "      The 'svg2tikz' CLI command remains available." >&2
+        return
+    fi
+
+    local ext_dir="/usr/share/inkscape/extensions"
+    mkdir -p "${ext_dir}"
+    echo "Registering svg2tikz as an Inkscape extension from ${ext_src}"
+    cp -r "${ext_src}"/. "${ext_dir}/"
+}
+
+main() {
+    echo "Installing svg2tikz..."
+    install_python_prereqs
+    install_lxml_build_deps
+
+    python3 -m venv "${SVG2TIKZ_PREFIX}"
+    "${SVG2TIKZ_PREFIX}/bin/pip" install --no-cache-dir --upgrade pip
+    "${SVG2TIKZ_PREFIX}/bin/pip" install --no-cache-dir svg2tikz
+
+    remove_build_deps
+
+    for bin in "${SVG2TIKZ_PREFIX}/bin"/svg2tikz "${SVG2TIKZ_PREFIX}/bin"/inkscape-tikz; do
+        [ -e "${bin}" ] || continue
+        ln -sf "${bin}" "/usr/local/bin/$(basename "${bin}")"
+    done
+
+    register_inkscape_extension
+
+    echo "svg2tikz installation complete."
+    svg2tikz --version 2>&1 | head -1 || true
+}
+
+main

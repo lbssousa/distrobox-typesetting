@@ -1,0 +1,13 @@
+#!/bin/bash
+# Rebuilds/reinstalls Gregorio from lbssousa/gregorio at a given ref, reusing
+# the same install-gregorio.sh logic used at image build time.
+#
+# Usage: update-gregorio [ref]   (branch, tag, or commit; defaults to
+# "playground-2026-08-27")
+set -euo pipefail
+
+if [ "$(id -u)" -ne 0 ]; then
+    exec sudo "$0" "$@"
+fi
+
+REF="${1:-playground-2026-08-27}" /opt/distrobox-typesetting/scripts/install-gregorio.sh

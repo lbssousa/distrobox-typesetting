@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+# Builds the typesetting container image and creates a distrobox container
+# from it. Run `./distrobox-typesetting --help` for usage.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# ---------------------------------------------------------------------------
+# Defaults, overridden by typesetting.env, overridden by CLI flags.
+# ---------------------------------------------------------------------------
+BASE_IMAGE="alpine:latest"
+TEXLIVE_RELEASE="latest"
+TEXLIVE_SCHEME="full"
+TEXLIVE_PACKAGES=""
+LILYPOND_VERSION="2.26.0"
+GREGORIO_REF="playground-2026-08-27"
+CONTAINER_NAME="typesetting"
+ENGINE="auto"
+
+for candidate in "${PWD}/typesetting.env" "${SCRIPT_DIR}/typesetting.env"; do
+    if [ -f "${candidate}" ]; then
+        # shellcheck disable=SC1090
+        . "${candidate}"
+        break
+    fi
+done
+
+usage() {
+    cat <<EOF
+Usage: $(basename "$0") [options]
+
+Builds the typesetting container image (Containerfile) and creates a
+distrobox container from it.
+
+Options:
+  --base-image IMAGE          Base container image (default: ${BASE_IMAGE})
+  --texlive-release RELEASE   TeX Live release: year or "latest" (default: ${TEXLIVE_RELEASE})
+  --texlive-scheme SCHEME     TeX Live scheme (default: ${TEXLIVE_SCHEME})
+  --texlive-packages PKGS     Extra TeX Live packages, space/comma-separated (default: "${TEXLIVE_PACKAGES}")
+  --lilypond-version VERSION  LilyPond version (default: ${LILYPOND_VERSION})
+  --gregorio-ref REF          lbssousa/gregorio ref to build from (default: ${GREGORIO_REF})
+  --name NAME                 distrobox container name (default: ${CONTAINER_NAME})
+  --engine ENGINE             auto|podman|docker (default: ${ENGINE})
+  -h, --help                  Show this help
+
+Options default to the values in typesetting.env (CWD, then this script's
+directory) if present, and to the built-in defaults shown above otherwise.
+EOF
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --base-image) BASE_IMAGE="$2"; shift 2 ;;
+        --texlive-release) TEXLIVE_RELEASE="$2"; shift 2 ;;
+        --texlive-scheme) TEXLIVE_SCHEME="$2"; shift 2 ;;
+        --texlive-packages) TEXLIVE_PACKAGES="$2"; shift 2 ;;
+        --lilypond-version) LILYPOND_VERSION="$2"; shift 2 ;;
+        --gregorio-ref) GREGORIO_REF="$2"; shift 2 ;;
+        --name) CONTAINER_NAME="$2"; shift 2 ;;
+        --engine) ENGINE="$2"; shift 2 ;;
+        -h|--help) usage; exit 0 ;;
+        *)
+            echo "Unknown option: $1" >&2
+            usage >&2
+            exit 1
+            ;;
+    esac
+done
+
+# ---------------------------------------------------------------------------
+# Resolve container engine
+# ---------------------------------------------------------------------------
+case "${ENGINE}" in
+    auto)
+        if command -v podman >/dev/null 2>&1; then
+            ENGINE=podman
+        elif command -v docker >/dev/null 2>&1; then
+            ENGINE=docker
+        else
+            echo "ERROR: neither podman nor docker found on PATH." >&2
+            exit 1
+        fi
+        ;;
+    podman|docker)
+        if ! command -v "${ENGINE}" >/dev/null 2>&1; then
+            echo "ERROR: engine '${ENGINE}' requested but not found on PATH." >&2
+            exit 1
+        fi
+        ;;
+    *)
+        echo "ERROR: unknown engine '${ENGINE}' (expected auto, podman, or docker)." >&2
+        exit 1
+        ;;
+esac
+
+if ! command -v distrobox >/dev/null 2>&1; then
+    echo "ERROR: distrobox not found on PATH." >&2
+    exit 1
+fi
+
+IMAGE_TAG="distrobox-typesetting:local"
+
+echo "==> Building ${IMAGE_TAG} with ${ENGINE}"
+"${ENGINE}" build \
+    -f "${SCRIPT_DIR}/Containerfile" \
+    -t "${IMAGE_TAG}" \
+    --build-arg "BASE_IMAGE=${BASE_IMAGE}" \
+    --build-arg "TEXLIVE_RELEASE=${TEXLIVE_RELEASE}" \
+    --build-arg "TEXLIVE_SCHEME=${TEXLIVE_SCHEME}" \
+    --build-arg "TEXLIVE_PACKAGES=${TEXLIVE_PACKAGES}" \
+    --build-arg "LILYPOND_VERSION=${LILYPOND_VERSION}" \
+    --build-arg "GREGORIO_REF=${GREGORIO_REF}" \
+    "${SCRIPT_DIR}"
+
+echo "==> Creating distrobox container '${CONTAINER_NAME}'"
+distrobox create --image "${IMAGE_TAG}" --name "${CONTAINER_NAME}" --yes
+
+cat <<EOF
+
+Done. Enter the container with:
+
+  distrobox enter ${CONTAINER_NAME}
+
+Note: re-running this script rebuilds ${IMAGE_TAG} but does not recreate an
+already-existing '${CONTAINER_NAME}' container. To pick up a rebuilt image,
+remove the old container first: distrobox rm ${CONTAINER_NAME}
+EOF

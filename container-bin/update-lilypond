@@ -1,0 +1,19 @@
+#!/bin/bash
+# Rebuilds/reinstalls LilyPond at a given version, reusing the same
+# install-lilypond.sh logic used at image build time.
+#
+# Usage: update-lilypond <version>   (e.g. update-lilypond 2.26.4)
+set -euo pipefail
+
+if [ "$(id -u)" -ne 0 ]; then
+    exec sudo "$0" "$@"
+fi
+
+if [ $# -lt 1 ]; then
+    echo "Usage: update-lilypond <version>" >&2
+    echo "Currently installed:" >&2
+    lilypond --version 2>/dev/null | head -1 >&2 || echo "  (lilypond not found)" >&2
+    exit 1
+fi
+
+VERSION="$1" /opt/distrobox-typesetting/scripts/install-lilypond.sh
