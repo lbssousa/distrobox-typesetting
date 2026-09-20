@@ -23,7 +23,12 @@ RUN chmod +x \
     /opt/distrobox-typesetting/scripts/lib/*.sh \
     /usr/local/bin/update-*
 
-RUN RELEASE="${TEXLIVE_RELEASE}" SCHEME="${TEXLIVE_SCHEME}" PACKAGES="${TEXLIVE_PACKAGES}" \
+# The cache mount outlives the build, even a failed one, so TeX Live packages
+# already downloaded are reused when the build is re-run after e.g. the mirror
+# dropped the connection. Needs BuildKit (default in current docker) or podman.
+RUN --mount=type=cache,target=/var/cache/texlive-downloads \
+    TEXLIVE_CACHE_DIR=/var/cache/texlive-downloads \
+    RELEASE="${TEXLIVE_RELEASE}" SCHEME="${TEXLIVE_SCHEME}" PACKAGES="${TEXLIVE_PACKAGES}" \
     MIRROR="${TEXLIVE_MIRROR}" \
     /opt/distrobox-typesetting/scripts/install-texlive.sh
 

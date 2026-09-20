@@ -32,10 +32,44 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_TL_DIR="$(mktemp -d)"
 TEXLIVE_PREFIX="/opt/texlive"
 
+# Optional persistent download cache (see lib/texlive-cached-download.sh). The
+# Containerfile mounts a build cache here, so packages fetched by a build that
+# later failed (e.g. the mirror went away) are reused by the next one.
+TEXLIVE_CACHE_DIR="${TEXLIVE_CACHE_DIR:-}"
+TEXLIVE_CACHE_STATS=""
+
 cleanup() {
     rm -rf "${INSTALL_TL_DIR}"
+    if [ -n "${TEXLIVE_CACHE_STATS}" ]; then
+        echo "TeX Live download cache: $(grep -c hit "${TEXLIVE_CACHE_STATS}" || true) reused," \
+            "$(grep -c miss "${TEXLIVE_CACHE_STATS}" || true) downloaded (kept in ${TEXLIVE_CACHE_DIR})"
+        rm -f "${TEXLIVE_CACHE_STATS}"
+    fi
 }
 trap cleanup EXIT
+
+# ---------------------------------------------------------------------------
+# Route every TeX Live download (install-tl and tlmgr) through the caching,
+# retrying downloader
+# ---------------------------------------------------------------------------
+setup_downloader() {
+    if [ -n "${TEXLIVE_CACHE_DIR}" ]; then
+        mkdir -p "${TEXLIVE_CACHE_DIR}"
+        TEXLIVE_CACHE_STATS="$(mktemp)"
+        export TEXLIVE_CACHE_DIR TEXLIVE_CACHE_STATS
+    fi
+    export TL_DOWNLOAD_PROGRAM="${SCRIPT_DIR}/lib/texlive-cached-download.sh"
+    # TeX Live warns on every download if this is undefined; the helper ignores it.
+    export TL_DOWNLOAD_ARGS="--"
+    unset TEXLIVE_DOWNLOADER
+}
+
+# Drop cache entries nobody has used for a month, so it cannot grow forever.
+prune_cache() {
+    if [ -n "${TEXLIVE_CACHE_DIR}" ]; then
+        find "${TEXLIVE_CACHE_DIR}" -type f -mtime +30 -delete
+    fi
+}
 
 # ---------------------------------------------------------------------------
 # Install OS prerequisites
@@ -46,7 +80,7 @@ install_prerequisites() {
 
     if is_debian_like; then
         pkg_install \
-            wget curl ca-certificates fontconfig gnupg \
+            wget curl ca-certificates fontconfig gnupg xz-utils \
             perl perl-base \
             libyaml-tiny-perl \
             libfile-homedir-perl \
@@ -57,7 +91,7 @@ install_prerequisites() {
             libsub-identify-perl
     elif is_redhat_like; then
         pkg_install \
-            wget curl ca-certificates fontconfig gnupg2 \
+            wget curl ca-certificates fontconfig gnupg2 xz \
             perl \
             perl-YAML-Tiny \
             perl-File-HomeDir \
@@ -68,7 +102,7 @@ install_prerequisites() {
             perl-Sub-Identify
     elif is_alpine; then
         pkg_install \
-            wget curl ca-certificates fontconfig gnupg \
+            wget curl ca-certificates fontconfig gnupg xz \
             perl \
             perl-yaml-tiny \
             perl-file-homedir \
@@ -118,7 +152,7 @@ resolve_tlnet_url() {
 download_installer() {
     local url="$1"
     echo "Downloading TeX Live installer from: ${url}"
-    wget -qO "${INSTALL_TL_DIR}/install-tl-unx.tar.gz" "${url}"
+    "${TL_DOWNLOAD_PROGRAM}" "${INSTALL_TL_DIR}/install-tl-unx.tar.gz" "${url}"
     tar -xzf "${INSTALL_TL_DIR}/install-tl-unx.tar.gz" \
         --strip-components=1 \
         -C "${INSTALL_TL_DIR}"
@@ -263,6 +297,7 @@ ensure_latexindent_deps() {
 # ---------------------------------------------------------------------------
 main() {
     install_prerequisites
+    setup_downloader
 
     local installer_url
     installer_url="$(resolve_installer_url)"
@@ -299,6 +334,7 @@ main() {
 
     install_extra_packages
     ensure_latexindent_deps
+    prune_cache
 
     echo "TeX Live installation complete."
     tex --version | head -1 || true

@@ -69,6 +69,23 @@ Re-running the script rebuilds the `distrobox-typesetting:local` image but does 
 recreate an already-existing container with the same name. To pick up a rebuilt image, remove
 the old container first (`distrobox rm <name>`) and re-run the script.
 
+## TeX Live download cache
+
+Installing a large TeX Live scheme (e.g. `full`) downloads several GB, and the build can die
+half-way if the connection to the mirror drops. To avoid starting over, the build keeps every
+TeX Live package it downloads in a persistent build cache (`RUN --mount=type=cache`, which
+survives failed builds), so simply re-running `./distrobox-typesetting` reuses what was already
+fetched and only downloads the rest. Downloads are also retried and resumed automatically.
+The cache is keyed by each package's checksum, so it stays valid across mirrors (you can switch
+`--texlive-mirror` between attempts) and never serves outdated packages: an updated package is
+downloaded again. Entries unused for 30 days are pruned after a successful install, and the
+build log ends with a summary line such as
+`TeX Live download cache: 3120 reused, 415 downloaded`.
+
+This needs podman, or docker with BuildKit (the default since docker 23). To wipe the cache
+manually: with podman, `podman unshare rm -rf /var/tmp/buildah-cache-$(id -u)` (that folder is
+shared by all podman build caches); with docker, `docker builder prune`.
+
 ## Updating an existing container
 
 These helpers are installed inside the container (`/usr/local/bin`) and self-elevate with
@@ -88,7 +105,8 @@ These helpers are installed inside the container (`/usr/local/bin`) and self-ele
 - `distrobox-typesetting` — the CLI script that builds the image and creates the container.
 - `typesetting.env.example` — configuration template (copy to `typesetting.env`, gitignored).
 - `scripts/` — one install script per component, plus `scripts/lib/common.sh` with shared
-  OS-detection and package-manager helpers. Kept inside the built image at
+  OS-detection and package-manager helpers and `scripts/lib/texlive-cached-download.sh`, the
+  caching/retrying downloader used by `install-texlive.sh`. Kept inside the built image at
   `/opt/distrobox-typesetting/scripts/` so the `update-*` helpers can reuse them.
 - `container-bin/` — the `update-*` helper scripts, copied into the image's `/usr/local/bin`.
 
