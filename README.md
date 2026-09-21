@@ -45,6 +45,7 @@ Configuration is resolved in this order (later wins): built-in defaults →
 | TeX Live mirror | `TEXLIVE_MIRROR` | `--texlive-mirror` | `https://linorg.usp.br` |
 | LilyPond version | `LILYPOND_VERSION` | `--lilypond-version` | `2.26.0` |
 | Gregorio ref (lbssousa/gregorio) | `GREGORIO_REF` | `--gregorio-ref` | `playground-2026-08-27` |
+| Container locale | `LOCALE` | `--locale` | `auto` (the host's `LC_ALL`/`LANG`) |
 | Container name | `CONTAINER_NAME` | `--name` | `typesetting` |
 | Container engine | `ENGINE` | `--engine` | `auto` (podman, fallback docker) |
 
@@ -85,6 +86,22 @@ build log ends with a summary line such as
 This needs podman, or docker with BuildKit (the default since docker 23). To wipe the cache
 manually: with podman, `podman unshare rm -rf /var/tmp/buildah-cache-$(id -u)` (that folder is
 shared by all podman build caches); with docker, `docker builder prune`.
+
+## Locale
+
+The image installs the locale data for `LOCALE` (`musl-locales` on Alpine, `locales` +
+`locale-gen` on Debian/Ubuntu, a glibc langpack on Fedora/RHEL) and makes it the default
+`LANG`. By default (`auto`) that is the host's locale, read from `LC_ALL`/`LANG` when you run
+the script. On Alpine, the stock `/etc/profile.d/20locale.sh` (which forces `LC_COLLATE=C`) is
+replaced so login shells don't override the locale. `distrobox enter` also passes the host's
+`LANG`/`LANGUAGE` through, so the two stay in sync.
+
+To fix an already-created container without rebuilding it:
+
+```sh
+distrobox enter typesetting -- sudo LOCALE=pt_BR.UTF-8 \
+    /opt/distrobox-typesetting/scripts/configure-locale.sh
+```
 
 ## Updating an existing container
 

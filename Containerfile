@@ -45,5 +45,15 @@ RUN /opt/distrobox-typesetting/scripts/install-zathura.sh
 RUN /opt/distrobox-typesetting/scripts/install-starship.sh
 RUN /opt/distrobox-typesetting/scripts/configure-fonts.sh
 
+# Declared (and used) last so that changing the locale doesn't invalidate the
+# expensive layers above. The wrapper script defaults this to the host's LANG.
+ARG LOCALE=C.UTF-8
+RUN LOCALE="${LOCALE}" /opt/distrobox-typesetting/scripts/configure-locale.sh
+
+# Image-level defaults; `distrobox enter` overrides LANG with the host's, and
+# MUSL_LOCPATH (harmless on glibc) is needed by non-login shells on Alpine.
+ENV LANG="${LOCALE}" \
+    MUSL_LOCPATH="/usr/share/i18n/locales/musl"
+
 ENV MANPATH="/opt/texlive/bin/man:${MANPATH}" \
     INFOPATH="/opt/texlive/bin/info:${INFOPATH}"
