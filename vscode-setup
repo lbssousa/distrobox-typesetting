@@ -1,0 +1,174 @@
+#!/usr/bin/env bash
+# Configures VS Code's Dev Containers extension to attach to the distrobox
+# container this project creates: writes a per-container "named
+# configuration" and prepares a /.vscode-server directory inside the
+# container. Reproduces the steps documented at
+# https://gist.github.com/lbssousa/bb081e35d483520928033b2797133d5e
+#
+# Run `./vscode-setup --help` for usage.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# ---------------------------------------------------------------------------
+# Defaults, overridden by typesetting.env, overridden by CLI flags.
+# ---------------------------------------------------------------------------
+CONTAINER_NAME="typesetting"
+FLATPAK="auto"
+CONFIG_DIR=""
+SKIP_NAMECONFIG=0
+SKIP_VSCODE_SERVER=0
+
+for candidate in "${PWD}/typesetting.env" "${SCRIPT_DIR}/typesetting.env"; do
+    if [ -f "${candidate}" ]; then
+        # shellcheck disable=SC1090
+        . "${candidate}"
+        break
+    fi
+done
+
+usage() {
+    cat <<EOF
+Usage: $(basename "$0") [options]
+
+Configures VS Code's Dev Containers extension to attach to the distrobox
+container this project creates. Reproduces:
+https://gist.github.com/lbssousa/bb081e35d483520928033b2797133d5e
+
+Options:
+  --name NAME             distrobox container name (default: ${CONTAINER_NAME})
+  --flatpak               VS Code is installed as a Flatpak (com.visualstudio.code)
+  --no-flatpak            VS Code is not a Flatpak
+  --config-dir DIR        VS Code's config dir (default: auto-detected; usually
+                           \$XDG_CONFIG_HOME, or ~/.var/app/com.visualstudio.code/config
+                           for the Flatpak)
+  --skip-nameconfig       Don't write the VS Code named configuration
+  --skip-vscode-server    Don't prepare /.vscode-server inside the container
+  -h, --help              Show this help
+
+--name defaults to CONTAINER_NAME in typesetting.env (CWD, then this
+script's directory) if present, else "typesetting". The container must
+already exist (see ./distrobox-typesetting) unless --skip-vscode-server is
+given.
+EOF
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --name) CONTAINER_NAME="$2"; shift 2 ;;
+        --flatpak) FLATPAK=1; shift ;;
+        --no-flatpak) FLATPAK=0; shift ;;
+        --config-dir) CONFIG_DIR="$2"; shift 2 ;;
+        --skip-nameconfig) SKIP_NAMECONFIG=1; shift ;;
+        --skip-vscode-server) SKIP_VSCODE_SERVER=1; shift ;;
+        -h|--help) usage; exit 0 ;;
+        *)
+            echo "Unknown option: $1" >&2
+            usage >&2
+            exit 1
+            ;;
+    esac
+done
+
+# ---------------------------------------------------------------------------
+# Resolve VS Code's config dir and the localEnv vars to forward for DISPLAY,
+# SHELL and SSH_AUTH_SOCK (the Flatpak sandbox only exposes those to the
+# container by way of HOST_DISPLAY/HOST_SHELL/HOST_SSH_AUTH_SOCK, injected
+# separately with `flatpak override`; see the gist above).
+# ---------------------------------------------------------------------------
+if [ "${FLATPAK}" = "auto" ]; then
+    if command -v flatpak >/dev/null 2>&1 && flatpak info com.visualstudio.code >/dev/null 2>&1; then
+        FLATPAK=1
+    else
+        FLATPAK=0
+    fi
+fi
+
+if [ "${FLATPAK}" = 1 ]; then
+    : "${CONFIG_DIR:=${HOME}/.var/app/com.visualstudio.code/config}"
+    DISPLAY_VAR='${localEnv:HOST_DISPLAY}'
+    SHELL_VAR='${localEnv:HOST_SHELL}'
+    SSH_AUTH_SOCK_VAR='${localEnv:HOST_SSH_AUTH_SOCK}'
+else
+    : "${CONFIG_DIR:=${XDG_CONFIG_HOME:-${HOME}/.config}}"
+    DISPLAY_VAR='${localEnv:DISPLAY}'
+    SHELL_VAR='${localEnv:SHELL}'
+    SSH_AUTH_SOCK_VAR='${localEnv:SSH_AUTH_SOCK}'
+fi
+
+# ---------------------------------------------------------------------------
+# 1. VS Code named configuration for attaching to this container
+# ---------------------------------------------------------------------------
+if [ "${SKIP_NAMECONFIG}" -eq 0 ]; then
+    NAMECONFIGS_DIR="${CONFIG_DIR}/Code/User/globalStorage/ms-vscode-remote.remote-containers/nameConfigs"
+    NAMECONFIG_FILE="${NAMECONFIGS_DIR}/${CONTAINER_NAME}.json"
+
+    echo "==> Writing VS Code named configuration: ${NAMECONFIG_FILE}"
+    mkdir -p "${NAMECONFIGS_DIR}"
+    cat > "${NAMECONFIG_FILE}" <<EOF
+{
+  "remoteUser": "\${localEnv:USER}",
+  "settings": {
+    "dev.containers.copyGitConfig": false,
+    "dev.containers.gitCredentialHelperConfigLocation": "none"
+  },
+
+  "terminal.integrated.profiles.linux": {
+    "distrobox": {
+      "path": "${SHELL_VAR}",
+      "args": [
+        "-l"
+      ]
+    }
+  },
+  "terminal.integrated.defaultProfile.linux": "distrobox",
+
+  "remoteEnv": {
+    "COLORTERM": "\${localEnv:COLORTERM}",
+    "DBUS_SESSION_BUS_ADDRESS": "\${localEnv:DBUS_SESSION_BUS_ADDRESS}",
+    "DESKTOP_SESSION": "\${localEnv:DESKTOP_SESSION}",
+    "DISPLAY": "${DISPLAY_VAR}",
+    "LANG": "\${localEnv:LANG}",
+    "SHELL": "${SHELL_VAR}",
+    "SSH_AUTH_SOCK": "${SSH_AUTH_SOCK_VAR}",
+    "TERM": "\${localEnv:TERM}",
+    "VTE_VERSION": "\${localEnv:VTE_VERSION}",
+    "XDG_CURRENT_DESKTOP": "\${localEnv:XDG_CURRENT_DESKTOP}",
+    "XDG_DATA_DIRS": "\${localEnv:XDG_DATA_DIRS}",
+    "XDG_MENU_PREFIX": "\${localEnv:XDG_MENU_PREFIX}",
+    "XDG_RUNTIME_DIR": "\${localEnv:XDG_RUNTIME_DIR}",
+    "XDG_SESSION_DESKTOP": "\${localEnv:XDG_SESSION_DESKTOP}",
+    "XDG_SESSION_TYPE": "\${localEnv:XDG_SESSION_TYPE}"
+  }
+}
+EOF
+fi
+
+# ---------------------------------------------------------------------------
+# 2. /.vscode-server directory inside the container, so the VS Code Server
+#    has somewhere writable to install itself into.
+# ---------------------------------------------------------------------------
+if [ "${SKIP_VSCODE_SERVER}" -eq 0 ]; then
+    if ! command -v distrobox >/dev/null 2>&1; then
+        echo "ERROR: distrobox not found on PATH." >&2
+        exit 1
+    fi
+
+    echo "==> Preparing /.vscode-server inside container '${CONTAINER_NAME}'"
+    distrobox enter "${CONTAINER_NAME}" -- bash -c '
+        set -euo pipefail
+        if [ ! -d /.vscode-server ]; then
+            sudo mkdir -p /.vscode-server
+            sudo chown "$(id -u)":"$(id -g)" /.vscode-server
+        fi
+        ln -sf /.vscode-server "${HOME}/.vscode-server"
+        sudo chmod 755 /root
+        sudo ln -sf /.vscode-server /root/.vscode-server
+    '
+fi
+
+cat <<EOF
+
+Done. In VS Code: "Dev Containers: Attach to Running Container..." and pick
+'${CONTAINER_NAME}'.
+EOF

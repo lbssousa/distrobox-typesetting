@@ -116,10 +116,36 @@ These helpers are installed inside the container (`/usr/local/bin`) and self-ele
 - `update-gregorio [ref]` — rebuilds Gregorio from `lbssousa/gregorio` at the given ref
   (defaults to `playground-2026-08-27`).
 
+## VS Code integration
+
+To attach VS Code's [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+extension to the distrobox container (instead of using a `.devcontainer.json`), run:
+
+```sh
+./vscode-setup
+```
+
+This reproduces the steps from
+[this gist](https://gist.github.com/lbssousa/bb081e35d483520928033b2797133d5e):
+
+1. Writes a per-container "named configuration" (terminal profile, forwarded
+   environment variables, git-related settings) to VS Code's `nameConfigs`
+   directory, auto-detecting whether VS Code is a Flatpak install.
+2. Prepares a writable `/.vscode-server` directory (with the symlinks the VS
+   Code Server needs) inside the running container.
+
+The container must already exist first (`./distrobox-typesetting`). Run
+`./vscode-setup --help` for the full flag list (container name, Flatpak
+detection override, config dir override, skipping either step). Then, in VS
+Code: **Dev Containers: Attach to Running Container...** and pick the
+container.
+
 ## Project layout
 
 - `Containerfile` — the parameterized image build recipe.
 - `distrobox-typesetting` — the CLI script that builds the image and creates the container.
+- `vscode-setup` — the CLI script that wires up VS Code's Dev Containers extension for the
+  created container.
 - `typesetting.env.example` — configuration template (copy to `typesetting.env`, gitignored).
 - `scripts/` — one install script per component, plus `scripts/lib/common.sh` with shared
   OS-detection and package-manager helpers and `scripts/lib/texlive-cached-download.sh`, the
