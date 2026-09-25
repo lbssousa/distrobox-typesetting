@@ -109,25 +109,23 @@ main() {
     python3 -m venv "${SVG2TIKZ_PREFIX}"
     "${SVG2TIKZ_PREFIX}/bin/pip" install --no-cache-dir --upgrade pip
 
-    if is_arch_like; then
-        # svg2tikz/inkex pin lxml<6.0.0 and pygobject<=3.50.0. Building
-        # lxml<6 from source fails on Arch: its current libxml2 tightened a
-        # C API's constness in a way only lxml>=6 accounts for, and lxml<6
-        # ships no wheel for Arch's (very current) Python either. The fix
-        # actually in use is lxml>=6, which is fully API-compatible with
-        # what inkex/svg2tikz call, so install it (and everything else)
-        # unpinned, then install svg2tikz/inkex with --no-deps so pip never
-        # re-evaluates their lxml/pygobject pins against it.
-        "${SVG2TIKZ_PREFIX}/bin/pip" install --no-cache-dir \
-            lxml "pygobject<=3.50.0" \
-            "Pillow>=7.0.0" "cssselect>=1.2.0,<2.0.0" \
-            "numpy>=1.21.2,<2.0.0" "packaging>=20.3" \
-            "pySerial>=3.4,<4.0" "pyparsing>=3.0.9" \
-            "scour>=0.37,<0.38" "tinycss2>=1.0.1,<2.0.0"
-        "${SVG2TIKZ_PREFIX}/bin/pip" install --no-cache-dir --no-deps svg2tikz "inkex==1.4.0"
-    else
-        "${SVG2TIKZ_PREFIX}/bin/pip" install --no-cache-dir svg2tikz
-    fi
+    # svg2tikz/inkex pin lxml<6.0.0 and pygobject<=3.50.0. On a
+    # current-enough distro (confirmed on Arch and Ubuntu 26.04, likely any
+    # rolling/very recent release), building lxml<6 from source fails: its
+    # libxml2 tightened a C API's constness in a way only lxml>=6 accounts
+    # for, and lxml<6 ships no prebuilt wheel for such a recent Python
+    # either. lxml>=6 is fully API-compatible with what inkex/svg2tikz
+    # actually call, so always install it (and everything else) unpinned,
+    # then install svg2tikz/inkex with --no-deps so pip never re-evaluates
+    # their lxml/pygobject pins against it. Harmless on older distros too:
+    # pip just picks whatever lxml/pygobject build already works there.
+    "${SVG2TIKZ_PREFIX}/bin/pip" install --no-cache-dir \
+        lxml "pygobject<=3.50.0" \
+        "Pillow>=7.0.0" "cssselect>=1.2.0,<2.0.0" \
+        "numpy>=1.21.2,<2.0.0" "packaging>=20.3" \
+        "pySerial>=3.4,<4.0" "pyparsing>=3.0.9" \
+        "scour>=0.37,<0.38" "tinycss2>=1.0.1,<2.0.0"
+    "${SVG2TIKZ_PREFIX}/bin/pip" install --no-cache-dir --no-deps svg2tikz "inkex==1.4.0"
 
     remove_build_deps
 
