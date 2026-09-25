@@ -158,6 +158,8 @@ install_gregorio() {
         install_build_deps autoconf automake libtool gcc make flex bison python3 fontforge pkgconf
     elif is_alpine; then
         install_build_deps autoconf automake libtool gcc musl-dev make flex bison python3 fontforge pkgconfig
+    elif is_arch_like; then
+        install_build_deps base-devel autoconf automake libtool flex bison python fontforge pkgconf
     fi
 
     echo "Downloading Gregorio ${display_ref} from ${tarball_url}..."

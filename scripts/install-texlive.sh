@@ -111,6 +111,18 @@ install_prerequisites() {
             perl-log-log4perl \
             perl-file-which \
             perl-sub-identify
+    elif is_arch_like; then
+        # Log::Dispatch has no Arch package; ensure_latexindent_deps installs
+        # it (and anything else missing) via cpanm below.
+        pkg_install \
+            wget curl ca-certificates fontconfig gnupg xz \
+            perl \
+            perl-yaml-tiny \
+            perl-file-homedir \
+            perl-unicode-linebreak \
+            perl-log-log4perl \
+            perl-file-which \
+            perl-sub-identify
     fi
 }
 
@@ -287,6 +299,14 @@ ensure_latexindent_deps() {
             pkg_install perl-App-cpanminus
         elif is_alpine; then
             pkg_install perl-app-cpanminus
+        elif is_arch_like; then
+            # make/gcc: Arch's base image ships no build toolchain at all,
+            # and cpanm needs both to build Log::Dispatch's XS-based
+            # transitive deps (Clone, XString via Specio).
+            pkg_install cpanminus make gcc
+            # Arch installs cpanm under vendor_perl, which isn't on the
+            # default PATH.
+            export PATH="${PATH}:/usr/bin/vendor_perl"
         fi
         cpanm --notest "${missing[@]}"
     fi

@@ -91,11 +91,11 @@ shared by all podman build caches); with docker, `docker builder prune`.
 ## Locale
 
 The image installs the locale data for `LOCALE` (`musl-locales` on Alpine, `locales` +
-`locale-gen` on Debian/Ubuntu, a glibc langpack on Fedora/RHEL) and makes it the default
-`LANG`. By default (`auto`) that is the host's locale, read from `LC_ALL`/`LANG` when you run
-the script. On Alpine, the stock `/etc/profile.d/20locale.sh` (which forces `LC_COLLATE=C`) is
-replaced so login shells don't override the locale. `distrobox enter` also passes the host's
-`LANG`/`LANGUAGE` through, so the two stay in sync.
+`locale-gen` on Debian/Ubuntu, a glibc langpack on Fedora/RHEL, glibc's own `locale-gen` on
+Arch) and makes it the default `LANG`. By default (`auto`) that is the host's locale, read from
+`LC_ALL`/`LANG` when you run the script. On Alpine, the stock `/etc/profile.d/20locale.sh`
+(which forces `LC_COLLATE=C`) is replaced so login shells don't override the locale. `distrobox
+enter` also passes the host's `LANG`/`LANGUAGE` through, so the two stay in sync.
 
 The OS-level Portuguese (`pt_BR.UTF-8`) locale data is always installed regardless of `LOCALE`,
 so Portuguese support is available even when the host locale differs (TeX Live's own Portuguese
@@ -115,7 +115,7 @@ These helpers are installed inside the container (`/usr/local/bin`) and self-ele
 
 - `update-texlive` — runs `tlmgr update --self --all`.
 - `update-system` — upgrades OS packages via the container's native package manager
-  (`apk`/`apt`/`dnf`).
+  (`apk`/`apt`/`dnf`/`pacman`).
 - `update-lilypond <version>` — rebuilds LilyPond at the given version, reusing the same
   install logic used at image build time.
 - `update-gregorio [ref]` — rebuilds Gregorio from `lbssousa/gregorio` at the given ref

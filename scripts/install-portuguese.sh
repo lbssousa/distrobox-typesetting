@@ -38,6 +38,23 @@ main() {
         locale-gen
     elif is_redhat_like; then
         pkg_install glibc-langpack-pt
+    elif is_arch_like; then
+        # The official Arch Docker image's pacman.conf excludes non-English
+        # locale sources (NoExtract) to keep the image small. Drop those
+        # rules and force-reinstall glibc so pt_BR's source file actually
+        # gets extracted; otherwise locale-gen fails with "cannot open
+        # locale definition file `pt_BR'".
+        if [ ! -e /usr/share/i18n/locales/pt_BR ]; then
+            sed -i '/^NoExtract.*\(locale\|i18n\)/d' /etc/pacman.conf
+            pacman -S --noconfirm --overwrite '*' glibc
+        fi
+        if ! grep -q '^pt_BR.UTF-8 ' /etc/locale.gen; then
+            sed -i 's|^# *\(pt_BR.UTF-8 UTF-8\)|\1|' /etc/locale.gen || true
+        fi
+        if ! grep -q '^pt_BR.UTF-8 ' /etc/locale.gen; then
+            echo 'pt_BR.UTF-8 UTF-8' >> /etc/locale.gen
+        fi
+        locale-gen
     else
         echo "Unsupported OS: ${OS_ID}" >&2
         exit 1

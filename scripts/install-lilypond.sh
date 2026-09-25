@@ -65,12 +65,16 @@ install_from_official() {
 
     echo "Installing LilyPond ${version} from official precompiled package."
     update_pkg_index
-    # Keep fontconfig at runtime; wget/ca-certificates are build-only.
+    # Keep fontconfig at runtime; ca-certificates is build-only. curl itself
+    # is already installed system-wide by install-texlive.sh. Downloaded
+    # with curl, not wget: Fedora's wget is actually wget2, which mishandles
+    # GitLab's release-download redirect (302 to its package registry,
+    # which then 404s) even though the URL itself is fine.
     pkg_install fontconfig
-    install_build_deps wget ca-certificates
+    install_build_deps ca-certificates
 
     echo "Downloading: ${url}"
-    wget -qO "${DOWNLOAD_DIR}/lilypond.tar.gz" "${url}"
+    curl -sSfL -o "${DOWNLOAD_DIR}/lilypond.tar.gz" "${url}"
 
     mkdir -p "${LILYPOND_PREFIX}"
     tar -xzf "${DOWNLOAD_DIR}/lilypond.tar.gz" \
@@ -109,6 +113,10 @@ install_from_source() {
         pkg_install \
             guile ghostscript python3 perl \
             fontconfig freetype cairo pango glib libpng
+    elif is_arch_like; then
+        pkg_install \
+            guile ghostscript python perl fontconfig \
+            freetype2 cairo pango glib2 libpng
     fi
 
     # Build-only dependencies — tracked for removal after the build.
@@ -119,13 +127,13 @@ install_from_source() {
             g++ make autoconf automake libtool bison flex pkg-config \
             guile-3.0-dev libfreetype-dev libcairo2-dev libpango1.0-dev \
             libglib2.0-dev libfontconfig1-dev libpng-dev zlib1g-dev \
-            libgc-dev gettext t1utils wget ca-certificates
+            libgc-dev gettext t1utils ca-certificates
     elif is_redhat_like; then
         install_build_deps \
             gcc-c++ make autoconf automake libtool bison flex pkgconf \
             guile-devel freetype-devel cairo-devel pango-devel glib2-devel \
             fontconfig-devel libpng-devel zlib-devel gc-devel \
-            gettext t1utils wget ca-certificates
+            gettext t1utils ca-certificates
     elif is_alpine; then
         # TeX Live is provided by install-texlive.sh (already in PATH);
         # do not install the apk texlive package, which lacks the MetaPost
@@ -135,11 +143,16 @@ install_from_source() {
             bison flex flex-dev pkgconf \
             guile-dev freetype-dev cairo-dev pango-dev glib-dev \
             fontconfig-dev libpng-dev zlib-dev gc-dev gettext-dev \
-            t1utils fontforge wget ca-certificates
+            t1utils fontforge ca-certificates
+    elif is_arch_like; then
+        install_build_deps \
+            base-devel autoconf automake libtool bison flex pkgconf \
+            guile freetype2 cairo pango glib2 fontconfig libpng zlib gc \
+            gettext t1utils fontforge ca-certificates
     fi
 
     echo "Downloading: ${url}"
-    wget -qO "${DOWNLOAD_DIR}/lilypond-src.tar.gz" "${url}"
+    curl -sSfL -o "${DOWNLOAD_DIR}/lilypond-src.tar.gz" "${url}"
     mkdir -p "${DOWNLOAD_DIR}/src"
     tar -xzf "${DOWNLOAD_DIR}/lilypond-src.tar.gz" \
         --strip-components=1 \
@@ -180,10 +193,10 @@ install_from_distro() {
 # ---------------------------------------------------------------------------
 main() {
     # Official precompiled binary: x86_64 + glibc-based distro only.
-    if [ "$(uname -m)" = "x86_64" ] && (is_debian_like || is_redhat_like); then
+    if [ "$(uname -m)" = "x86_64" ] && (is_debian_like || is_redhat_like || is_arch_like); then
         install_from_official "${VERSION}"
-    elif is_debian_like || is_redhat_like; then
-        # Non-x86_64 glibc distros (e.g. ARM64 Debian/Ubuntu): build from source.
+    elif is_debian_like || is_redhat_like || is_arch_like; then
+        # Non-x86_64 glibc distros (e.g. ARM64 Debian/Ubuntu, ARM64 Arch): build from source.
         install_from_source "${VERSION}"
     elif is_alpine && has_texlive; then
         # Alpine (musl) with TeX Live installed: build from source.

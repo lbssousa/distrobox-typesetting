@@ -40,6 +40,13 @@ is_alpine() {
     [ "${OS_ID}" = "alpine" ]
 }
 
+is_arch_like() {
+    case "${OS_ID}" in
+        arch|archarm|manjaro|manjaro-arm|endeavouros|garuda|arcolinux|cachyos) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 # ---------------------------------------------------------------------------
 # Package manager helpers
 # ---------------------------------------------------------------------------
@@ -55,6 +62,8 @@ pkg_install() {
         fi
     elif is_alpine; then
         apk add --no-cache "$@"
+    elif is_arch_like; then
+        pacman -S --needed --noconfirm "$@"
     else
         echo "Unsupported OS: ${OS_ID}" >&2
         exit 1
@@ -67,13 +76,43 @@ pkg_remove() {
         apt-get purge -y "$@"
         apt-get autoremove -y
     elif is_redhat_like; then
+        # pkgconf can never actually be removed on Fedora/RHEL container
+        # images: it provides /usr/bin/pkg-config, which the base image's
+        # kmod (required by the protected systemd-udev package) hard-depends
+        # on. Filter it out rather than let the whole removal fail.
+        local pkgs=()
+        for pkg in "$@"; do
+            [ "${pkg}" = "pkgconf" ] && continue
+            pkgs+=("${pkg}")
+        done
+        if [ "${#pkgs[@]}" -eq 0 ]; then
+            return
+        fi
+        # --setopt=clean_requirements_on_remove=False: dnf's default
+        # cascading removal of now-unneeded dependencies can silently strip
+        # a shared library (e.g. fontforge pulls in cairo) that a package
+        # installed *later* in the same build still needs, since dnf never
+        # re-verifies an already-installed package's deps on a later
+        # install. Trades a bit of image size for not breaking later steps.
         if command -v dnf &>/dev/null; then
-            dnf remove -y "$@"
+            dnf remove -y --setopt=clean_requirements_on_remove=False "${pkgs[@]}"
         else
-            yum remove -y "$@"
+            yum remove -y "${pkgs[@]}"
         fi
     elif is_alpine; then
         apk del "$@"
+    elif is_arch_like; then
+        # No-op by design. Unlike Debian/RHEL/Alpine, Arch doesn't split a
+        # library from its headers (no "-dev"/"-devel" package), so there is
+        # no way to remove "build-only" packages here without risking the
+        # runtime library itself: pacman's own orphan-aware removal (-Rns)
+        # cascades into whatever these pulled in transitively (e.g.
+        # fontforge's cairo, needed later by zathura) and silently strips it
+        # out, while a plain -Rn instead refuses outright once some other
+        # already-installed package (pulled in the same way) still depends
+        # on one of them. Leaving them installed trades image size for not
+        # breaking later steps or the build itself.
+        echo "Keeping build-only packages installed (Arch has no safe way to remove them): $*"
     fi
 }
 
@@ -84,6 +123,10 @@ update_pkg_index() {
         : # dnf/yum resolve on install
     elif is_alpine; then
         apk update
+    elif is_arch_like; then
+        # Arch never supports a partial upgrade (syncing the database without
+        # also upgrading), so always pair -Sy with -u.
+        pacman -Syu --noconfirm
     fi
 }
 
@@ -101,6 +144,8 @@ upgrade_pkgs() {
     elif is_alpine; then
         apk update
         apk upgrade
+    elif is_arch_like; then
+        pacman -Syu --noconfirm
     else
         echo "Unsupported OS: ${OS_ID}" >&2
         exit 1
@@ -115,6 +160,8 @@ is_pkg_installed() {
         rpm -q "${pkg}" &>/dev/null
     elif is_alpine; then
         apk info -e "${pkg}" &>/dev/null
+    elif is_arch_like; then
+        pacman -Q "${pkg}" &>/dev/null
     else
         return 1
     fi

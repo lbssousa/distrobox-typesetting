@@ -8,6 +8,8 @@
 #                   forces LC_COLLATE=C on login shells.
 #   Debian family   `locales` package + locale-gen + update-locale.
 #   Red Hat family  glibc langpack (or localedef as a fallback) + /etc/locale.conf.
+#   Arch family     glibc's own locale-gen (no separate locales package) +
+#                   /etc/locale.conf.
 if [ -z "${BASH_VERSION:-}" ]; then
     if ! command -v bash >/dev/null 2>&1; then
         if command -v apk >/dev/null 2>&1; then
@@ -78,6 +80,28 @@ configure_debian() {
     update-locale LANG="${LOCALE}"
 }
 
+configure_arch() {
+    update_pkg_index
+
+    # The official Arch Docker image's pacman.conf excludes non-English
+    # locale sources (NoExtract) to keep the image small. Drop those rules
+    # and force-reinstall glibc so this locale's source file actually gets
+    # extracted; otherwise locale-gen fails with "cannot open locale
+    # definition file".
+    if [ ! -e "/usr/share/i18n/locales/${LOCALE_NAME}" ]; then
+        sed -i '/^NoExtract.*\(locale\|i18n\)/d' /etc/pacman.conf
+        pacman -S --noconfirm --overwrite '*' glibc
+    fi
+
+    # /etc/locale.gen lists every locale commented out as "# pt_BR.UTF-8 UTF-8".
+    if ! sed -i "s|^# *\(${LOCALE} ${LOCALE_CODESET}\)|\1|" /etc/locale.gen \
+        || ! grep -q "^${LOCALE} ${LOCALE_CODESET}" /etc/locale.gen; then
+        echo "${LOCALE} ${LOCALE_CODESET}" >> /etc/locale.gen
+    fi
+    locale-gen
+    echo "LANG=${LOCALE}" > /etc/locale.conf
+}
+
 configure_redhat() {
     if ! pkg_install "glibc-langpack-${LOCALE_LANG}"; then
         echo "No glibc-langpack-${LOCALE_LANG}; generating ${LOCALE} with localedef."
@@ -98,6 +122,8 @@ main() {
         configure_debian
     elif is_redhat_like; then
         configure_redhat
+    elif is_arch_like; then
+        configure_arch
     else
         echo "Unsupported OS: ${OS_ID}" >&2
         exit 1
