@@ -12,7 +12,8 @@ typesetting and music-engraving toolchain:
   [lbssousa/gregorio](https://github.com/lbssousa/gregorio) and wired into TeX Live
   (`gregoriotex`), independently of TeX Live's own package manager.
 - [Inkscape](https://inkscape.org/), [svg2tikz](https://github.com/xyz2tex/svg2tikz),
-  [Neovim](https://neovim.io/), [Git](https://git-scm.com/),
+  [Neovim](https://neovim.io/) (with a C/C++ compiler toolchain kept installed, needed by
+  `nvim-treesitter` and similar plugins to compile parsers at runtime), [Git](https://git-scm.com/),
   [Zathura](https://pwmt.org/projects/zathura/),
   [Starship](https://starship.rs/) (shell prompt).
 
