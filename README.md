@@ -12,7 +12,8 @@ typesetting and music-engraving toolchain:
   [lbssousa/gregorio](https://github.com/lbssousa/gregorio) and wired into TeX Live
   (`gregoriotex`), independently of TeX Live's own package manager.
 - [Inkscape](https://inkscape.org/), [svg2tikz](https://github.com/xyz2tex/svg2tikz),
-  [Neovim](https://neovim.io/), [Zathura](https://pwmt.org/projects/zathura/),
+  [Neovim](https://neovim.io/), [Git](https://git-scm.com/),
+  [Zathura](https://pwmt.org/projects/zathura/),
   [Starship](https://starship.rs/) (shell prompt).
 
 TeX Live's bundled fonts are registered with fontconfig at build time, so LilyPond, Inkscape,
@@ -95,6 +96,10 @@ The image installs the locale data for `LOCALE` (`musl-locales` on Alpine, `loca
 the script. On Alpine, the stock `/etc/profile.d/20locale.sh` (which forces `LC_COLLATE=C`) is
 replaced so login shells don't override the locale. `distrobox enter` also passes the host's
 `LANG`/`LANGUAGE` through, so the two stay in sync.
+
+The OS-level Portuguese (`pt_BR.UTF-8`) locale data is always installed regardless of `LOCALE`,
+so Portuguese support is available even when the host locale differs (TeX Live's own Portuguese
+Babel/hyphenation packages are already part of the default `TEXLIVE_PACKAGES`).
 
 To fix an already-created container without rebuilding it:
 

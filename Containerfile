@@ -26,6 +26,12 @@ RUN chmod +x \
 # The cache mount outlives the build, even a failed one, so TeX Live packages
 # already downloaded are reused when the build is re-run after e.g. the mirror
 # dropped the connection. Needs BuildKit (default in current docker) or podman.
+# git and OS-level Portuguese (pt_BR) language support are installed early,
+# before the expensive TeX Live/LilyPond/Gregorio layers that do not depend
+# on them, so their caches stay valid.
+RUN /opt/distrobox-typesetting/scripts/install-git.sh
+RUN /opt/distrobox-typesetting/scripts/install-portuguese.sh
+
 RUN --mount=type=cache,target=/var/cache/texlive-downloads \
     TEXLIVE_CACHE_DIR=/var/cache/texlive-downloads \
     RELEASE="${TEXLIVE_RELEASE}" SCHEME="${TEXLIVE_SCHEME}" PACKAGES="${TEXLIVE_PACKAGES}" \
