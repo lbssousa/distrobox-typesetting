@@ -1,0 +1,13 @@
+#!/bin/bash
+# Rebuilds/reinstalls Neovim from source at a given version, reusing the same
+# install-neovim.sh logic used at image build time.
+#
+# Usage: update-neovim [version]   (e.g. update-neovim v0.10.2; defaults to
+# "latest", which resolves neovim/neovim's latest GitHub release)
+set -euo pipefail
+
+if [ "$(id -u)" -ne 0 ]; then
+    exec sudo "$0" "$@"
+fi
+
+VERSION="${1:-latest}" /opt/distrobox-typesetting/scripts/install-neovim.sh

@@ -17,6 +17,7 @@ TEXLIVE_PACKAGES="babel-latin,babel-portuges,booktabs,csquotes,ebgaramond,enumit
 TEXLIVE_MIRROR="https://linorg.usp.br"
 LILYPOND_VERSION="2.26.0"
 GREGORIO_REF="playground-2026-08-27"
+NEOVIM_VERSION="latest"
 LOCALE="auto"
 CONTAINER_NAME="typesetting"
 ENGINE="auto"
@@ -44,6 +45,7 @@ Options:
   --texlive-mirror URL        TeX Live mirror base URL (default: ${TEXLIVE_MIRROR})
   --lilypond-version VERSION  LilyPond version (default: ${LILYPOND_VERSION})
   --gregorio-ref REF          lbssousa/gregorio ref to build from (default: ${GREGORIO_REF})
+  --neovim-version VERSION    Neovim version to build from source, or "latest" (default: ${NEOVIM_VERSION})
   --locale LOCALE             Container locale, e.g. pt_BR.UTF-8; "auto" uses the host's (default: ${LOCALE})
   --name NAME                 distrobox container name (default: ${CONTAINER_NAME})
   --engine ENGINE             auto|podman|docker (default: ${ENGINE})
@@ -63,6 +65,7 @@ while [ $# -gt 0 ]; do
         --texlive-mirror) TEXLIVE_MIRROR="$2"; shift 2 ;;
         --lilypond-version) LILYPOND_VERSION="$2"; shift 2 ;;
         --gregorio-ref) GREGORIO_REF="$2"; shift 2 ;;
+        --neovim-version) NEOVIM_VERSION="$2"; shift 2 ;;
         --locale) LOCALE="$2"; shift 2 ;;
         --name) CONTAINER_NAME="$2"; shift 2 ;;
         --engine) ENGINE="$2"; shift 2 ;;
@@ -133,6 +136,7 @@ echo "==> Building ${IMAGE_TAG} with ${ENGINE} (locale: ${LOCALE})"
     --build-arg "TEXLIVE_MIRROR=${TEXLIVE_MIRROR}" \
     --build-arg "LILYPOND_VERSION=${LILYPOND_VERSION}" \
     --build-arg "GREGORIO_REF=${GREGORIO_REF}" \
+    --build-arg "NEOVIM_VERSION=${NEOVIM_VERSION}" \
     --build-arg "LOCALE=${LOCALE}" \
     "${SCRIPT_DIR}"
 

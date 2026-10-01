@@ -12,8 +12,9 @@ typesetting and music-engraving toolchain:
   [lbssousa/gregorio](https://github.com/lbssousa/gregorio) and wired into TeX Live
   (`gregoriotex`), independently of TeX Live's own package manager.
 - [Inkscape](https://inkscape.org/), [svg2tikz](https://github.com/xyz2tex/svg2tikz),
-  [Neovim](https://neovim.io/) (with a C/C++ compiler toolchain kept installed, needed by
-  `nvim-treesitter` and similar plugins to compile parsers at runtime), [Git](https://git-scm.com/),
+  [Neovim](https://neovim.io/) — built from source (distro packages lag behind upstream), with a
+  C/C++ compiler toolchain kept installed, needed by `nvim-treesitter` and similar plugins to
+  compile parsers at runtime — [Git](https://git-scm.com/),
   [Zathura](https://pwmt.org/projects/zathura/),
   [Starship](https://starship.rs/) (shell prompt).
 
@@ -47,6 +48,7 @@ Configuration is resolved in this order (later wins): built-in defaults →
 | TeX Live mirror | `TEXLIVE_MIRROR` | `--texlive-mirror` | `https://linorg.usp.br` |
 | LilyPond version | `LILYPOND_VERSION` | `--lilypond-version` | `2.26.0` |
 | Gregorio ref (lbssousa/gregorio) | `GREGORIO_REF` | `--gregorio-ref` | `playground-2026-08-27` |
+| Neovim version | `NEOVIM_VERSION` | `--neovim-version` | `latest` |
 | Container locale | `LOCALE` | `--locale` | `auto` (the host's `LC_ALL`/`LANG`) |
 | Container name | `CONTAINER_NAME` | `--name` | `typesetting` |
 | Container engine | `ENGINE` | `--engine` | `auto` (podman, fallback docker) |
@@ -121,6 +123,8 @@ These helpers are installed inside the container (`/usr/local/bin`) and self-ele
   install logic used at image build time.
 - `update-gregorio [ref]` — rebuilds Gregorio from `lbssousa/gregorio` at the given ref
   (defaults to `playground-2026-08-27`).
+- `update-neovim [version]` — rebuilds Neovim from source at the given version (defaults to
+  `latest`, resolving neovim/neovim's latest GitHub release).
 
 ## VS Code integration
 

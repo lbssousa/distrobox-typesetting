@@ -15,6 +15,7 @@ ARG TEXLIVE_PACKAGES="babel-latin,babel-portuges,booktabs,csquotes,ebgaramond,en
 ARG TEXLIVE_MIRROR=https://linorg.usp.br
 ARG LILYPOND_VERSION=2.26.0
 ARG GREGORIO_REF=playground-2026-08-27
+ARG NEOVIM_VERSION=latest
 
 COPY scripts/ /opt/distrobox-typesetting/scripts/
 COPY container-bin/ /usr/local/bin/
@@ -46,7 +47,10 @@ RUN HOST=github REPOSITORY=lbssousa/gregorio REF="${GREGORIO_REF}" \
 
 RUN /opt/distrobox-typesetting/scripts/install-inkscape.sh
 RUN /opt/distrobox-typesetting/scripts/install-svg2tikz.sh
-RUN /opt/distrobox-typesetting/scripts/install-neovim.sh
+
+RUN VERSION="${NEOVIM_VERSION}" \
+    /opt/distrobox-typesetting/scripts/install-neovim.sh
+
 RUN /opt/distrobox-typesetting/scripts/install-zathura.sh
 RUN /opt/distrobox-typesetting/scripts/install-starship.sh
 RUN /opt/distrobox-typesetting/scripts/configure-fonts.sh
