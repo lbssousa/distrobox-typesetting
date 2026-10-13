@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # ---------------------------------------------------------------------------
 # Defaults, overridden by typesetting.env, overridden by CLI flags.
 # ---------------------------------------------------------------------------
-BASE_IMAGE="alpine:latest"
+BASE_IMAGE="archlinux:latest"
 TEXLIVE_RELEASE="latest"
 TEXLIVE_SCHEME="minimal"
 # Temporary trimmed-down default while iterating on the build: see the

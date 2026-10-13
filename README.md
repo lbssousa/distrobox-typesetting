@@ -41,7 +41,7 @@ Configuration is resolved in this order (later wins): built-in defaults →
 
 | Option | Config key | CLI flag | Default |
 |---|---|---|---|
-| Base image | `BASE_IMAGE` | `--base-image` | `alpine:latest` |
+| Base image | `BASE_IMAGE` | `--base-image` | `archlinux:latest` |
 | TeX Live release | `TEXLIVE_RELEASE` | `--texlive-release` | `latest` |
 | TeX Live scheme | `TEXLIVE_SCHEME` | `--texlive-scheme` | `minimal`\* |
 | Extra TeX Live packages | `TEXLIVE_PACKAGES` | `--texlive-packages` | see below\* |

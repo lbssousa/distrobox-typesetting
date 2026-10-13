@@ -2,7 +2,7 @@
 # --image`. See README.md for the accompanying build/create wrapper script
 # and the full list of configuration options.
 
-ARG BASE_IMAGE=alpine:latest
+ARG BASE_IMAGE=archlinux:latest
 FROM ${BASE_IMAGE}
 
 ARG TEXLIVE_RELEASE=latest
