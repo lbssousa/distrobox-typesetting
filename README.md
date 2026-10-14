@@ -126,6 +126,23 @@ These helpers are installed inside the container (`/usr/local/bin`) and self-ele
 - `update-neovim [version]` — rebuilds Neovim from source at the given version (defaults to
   `latest`, resolving neovim/neovim's latest GitHub release).
 
+## Exporting executables to the host
+
+To run TeX Live (`pdflatex`, `lualatex`, `latexmk`, `tlmgr`, ...) and LilyPond (`lilypond`,
+`convert-ly`, ...) straight from the host's shell, editors and build systems:
+
+```sh
+./export-binaries                      # wrappers go to ~/.local/bin
+./export-binaries --export-path ~/bin  # or another directory on your PATH
+./export-binaries --unexport           # remove them again
+```
+
+This uses `distrobox-export --bin` for every TeX Live/LilyPond executable found in the
+container, producing small host-side wrappers that run the real binary inside the container.
+Existing host files that weren't created by `distrobox-export` are never overwritten. Re-run it
+after rebuilding the container or updating LilyPond/TeX Live (new executables, new version
+paths). Other options: `--name`, `--no-texlive`, `--no-lilypond`; see `--help`.
+
 ## VS Code integration
 
 To attach VS Code's [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
@@ -154,6 +171,7 @@ container.
 
 - `Containerfile` — the parameterized image build recipe.
 - `distrobox-typesetting` — the CLI script that builds the image and creates the container.
+- `export-binaries` — the CLI script that exports TeX Live/LilyPond executables to the host.
 - `vscode-setup` — the CLI script that wires up VS Code's Dev Containers extension for the
   created container.
 - `typesetting.env.example` — configuration template (copy to `typesetting.env`, gitignored).

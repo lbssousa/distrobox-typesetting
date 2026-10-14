@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+# Exports the TeX Live and LilyPond executables from the distrobox container
+# to the host, as small wrapper scripts (created by `distrobox-export --bin`)
+# that run the real binary inside the container.
+#
+# Run `./export-binaries --help` for usage.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# ---------------------------------------------------------------------------
+# Defaults, overridden by typesetting.env, overridden by CLI flags.
+# ---------------------------------------------------------------------------
+CONTAINER_NAME="typesetting"
+EXPORT_PATH="${HOME}/.local/bin"
+EXPORT_TEXLIVE=1
+EXPORT_LILYPOND=1
+UNEXPORT=0
+
+for candidate in "${PWD}/typesetting.env" "${SCRIPT_DIR}/typesetting.env"; do
+    if [ -f "${candidate}" ]; then
+        # shellcheck disable=SC1090
+        . "${candidate}"
+        break
+    fi
+done
+
+usage() {
+    cat <<EOF
+Usage: $(basename "$0") [options]
+
+Exports the TeX Live (pdflatex, lualatex, latexmk, tlmgr, ...) and LilyPond
+(lilypond, convert-ly, ...) executables from the container to the host, so
+they can be run from the host shell, editors and build systems.
+
+Options:
+  --name NAME         distrobox container name (default: ${CONTAINER_NAME})
+  --export-path DIR   Host directory to place the wrappers in; should be on
+                       the host's PATH (default: ${EXPORT_PATH})
+  --no-texlive        Don't export TeX Live executables
+  --no-lilypond       Don't export LilyPond executables
+  --unexport          Remove previously exported wrappers instead
+  -h, --help          Show this help
+
+--name defaults to CONTAINER_NAME in typesetting.env (CWD, then this
+script's directory) if present, else "typesetting". The container must
+already exist (see ./distrobox-typesetting). Re-run after rebuilding the
+container or updating LilyPond to refresh the wrappers.
+EOF
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --name) CONTAINER_NAME="$2"; shift 2 ;;
+        --export-path) EXPORT_PATH="$2"; shift 2 ;;
+        --no-texlive) EXPORT_TEXLIVE=0; shift ;;
+        --no-lilypond) EXPORT_LILYPOND=0; shift ;;
+        --unexport) UNEXPORT=1; shift ;;
+        -h|--help) usage; exit 0 ;;
+        *)
+            echo "Unknown option: $1" >&2
+            usage >&2
+            exit 1
+            ;;
+    esac
+done
+
+if ! command -v distrobox >/dev/null 2>&1; then
+    echo "ERROR: distrobox not found on PATH." >&2
+    exit 1
+fi
+
+if [ "${EXPORT_TEXLIVE}" -eq 0 ] && [ "${EXPORT_LILYPOND}" -eq 0 ]; then
+    echo "Nothing to export." >&2
+    exit 1
+fi
+
+mkdir -p "${EXPORT_PATH}"
+
+if [ "${UNEXPORT}" -eq 1 ]; then
+    echo "==> Removing exported wrappers from ${EXPORT_PATH} (container '${CONTAINER_NAME}')"
+else
+    echo "==> Exporting executables from container '${CONTAINER_NAME}' to ${EXPORT_PATH}"
+fi
+
+# Runs inside the container. Both installers symlink their executables into
+# /usr/local/bin; pick those whose target lives under the TeX Live/LilyPond
+# prefixes. Existing files on the host that were not created by
+# distrobox-export are left alone.
+distrobox enter "${CONTAINER_NAME}" -- bash -s -- \
+    "${EXPORT_PATH}" "${EXPORT_TEXLIVE}" "${EXPORT_LILYPOND}" "${UNEXPORT}" <<'INNER'
+set -euo pipefail
+export_path="$1" texlive="$2" lilypond="$3" unexport="$4"
+
+count=0
+skipped=0
+for bin in /usr/local/bin/*; do
+    [ -L "${bin}" ] && [ -x "${bin}" ] && [ ! -d "${bin}" ] || continue
+    target="$(readlink -f "${bin}")"
+    case "${target}" in
+        /opt/texlive/*)  [ "${texlive}" = 1 ]  || continue ;;
+        /opt/lilypond/*) [ "${lilypond}" = 1 ] || continue ;;
+        *) continue ;;
+    esac
+
+    wrapper="${export_path}/$(basename "${bin}")"
+    if [ -e "${wrapper}" ] && ! grep -q "distrobox_binary" "${wrapper}" 2>/dev/null; then
+        echo "  skipped ${wrapper}: exists and was not exported by distrobox" >&2
+        skipped=$((skipped + 1))
+        continue
+    fi
+
+    if [ "${unexport}" = 1 ]; then
+        [ -e "${wrapper}" ] || continue
+        distrobox-export --bin "${bin}" --export-path "${export_path}" --delete >/dev/null
+    else
+        distrobox-export --bin "${bin}" --export-path "${export_path}" >/dev/null
+    fi
+    count=$((count + 1))
+done
+
+echo "  $([ "${unexport}" = 1 ] && echo removed || echo exported) ${count} executable(s), skipped ${skipped}"
+INNER
+
+case ":${PATH}:" in
+    *":${EXPORT_PATH}:"*) ;;
+    *) echo "NOTE: ${EXPORT_PATH} is not on your PATH; add it to use the exported commands." >&2 ;;
+esac
